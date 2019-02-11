@@ -1,0 +1,30 @@
+#!/bin/bash -e
+# See best practices: https://bolt.apple.com/docs/cluster-config.html?highlight=best%20practices#setup-script
+# If this script doesn't do what you want or you want to restart the notebook without starting another Bolt instance:
+#  `ps -ax` then kill - 9 <jupyterID1> <jupyterID2> worked really well for me for getting around port in use errors
+. /opt/conda/etc/profile.d/conda.sh
+conda activate
+
+# Run Jupyter server.
+if [ $NOTEBOOK_PORT ]; then
+    mkdir -p /notebook
+    cat > /notebook/jupyter_notebook_config.py <<EOF
+import os
+c = get_config()
+
+c.NotebookApp.ip = '0.0.0.0'
+c.NotebookApp.port = int(os.getenv("NOTEBOOK_PORT"))
+c.NotebookApp.open_browser = False
+c.NotebookApp.allow_root = True
+EOF
+    # Create random token to protect Jupyter server.
+    JUPYTER_TOKEN=`date|md5sum|cut -c1-32`
+    # Notify the user that the notebook is starting...
+    $TASK_RUNTIME_DIR/util/notify $JUPYTER_TOKEN &> $BOLT_LOG_DIR/notebook_credentials.log
+
+    if [[ $PREFER_LAB ]]; then
+        jupyter lab --config=/notebook/jupyter_notebook_config.py --NotebookApp.token=${JUPYTER_TOKEN}
+    else
+        jupyter notebook --config=/notebook/jupyter_notebook_config.py --NotebookApp.token=${JUPYTER_TOKEN}
+    fi
+fi

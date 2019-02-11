@@ -1,0 +1,39 @@
+#!/bin/bash -e
+# Credit to ACG: https://stash.sd.apple.com/projects/ACG/repos/bolt-jupyter/browse
+
+# FIXME: Unable to send mail from docker container.
+# Install necessary dependencies.
+# DEBIAN_FRONTEND=noninteractive apt-get install -y mailutils postfix > /dev/null
+
+# Create a FQDN: container_IP container_id container_id.localdomain
+# http://www.tothenew.com/blog/setting-up-sendmail-inside-your-docker-container/
+# HOST_INFO=$(head -n 1 /etc/hosts)
+# CONTAINER_ID=$(echo $HOST_INFO | awk '{print $2}')
+# echo "$HOST_INFO $CONTAINER_ID.localdomain" >> /etc/hosts
+
+JUPYTER_TOKEN=${1-0}
+NOTEBOOK_URL="http://${SC_HOSTNAME}:${NOTEBOOK_PORT}/?token=${JUPYTER_TOKEN}"
+BOLT_TASK_URL="https://bolt.apple.com/tasks/${TASK_ID}/details"
+TENSORBOARD_URL="http://${SC_HOSTNAME}:${TENSORBOARD_PORT}"
+SSH_INFO="ssh -i ~/.turibolt/bolt_ssh_key -p ${SSH_PORT} root@${SC_HOSTNAME}"
+
+BODY="The simcloud Jupyter server is ready for you at: \n${NOTEBOOK_URL} \n\nBolt task url: ${BOLT_TASK_URL}\nConnect to ssh using: ${SSH_INFO}\nTensorboard: ${TENSORBOARD_URL}"
+SUBJECT="Notebook ready in Bolt task: ${TASK_ID}"
+
+echo "*************************************************************************"
+echo -e "${SUBJECT}"
+echo -e "${BODY}"
+echo "*************************************************************************"
+
+[[ -z "${NOTIFICATION_EMAIL}" ]] && TO_EMAIL="${OD_USER}@apple.com" || TO_EMAIL="${NOTIFICATION_EMAIL}"
+
+# Send email if the token is provided.
+if [ "$JUPYTER_TOKEN" != 0 ] ; then
+    # FIXME: This is not working inside docker containers.
+    # echo -e "${BODY}" | mail -s "${SUBJECT}" ${TO_EMAIL}
+    # echo "Sent email to:" ${TO_EMAIL}
+    echo "No email sent..."
+fi
+
+# Use system python install to update status message.
+python2 -c "import turibolt as bolt; bolt.set_status_message('Notebook Running: $NOTEBOOK_URL')"

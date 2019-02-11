@@ -1,0 +1,23 @@
+# Additional configuration options can be found here: https://bolt.apple.com/docs/tasks.html#configuring-a-task
+name: PyTorch + Jupyter Lab via Docker
+description: Default job with Python 3.7.2, conda, PyTorch (GPU), and Jupyter Lab.
+tags: ["Jupyter", "PyTorch", "Python3.7"]
+setup_command: "bash setup.sh"
+command: "bash command.sh"
+resources:
+    ports: ["NOTEBOOK_PORT", "TENSORBOARD_PORT", "ANOTHER_PORT", "ANOTHER_PORT2"]
+    num_cpus: 4
+    num_gpus: 1
+    timeout: 14d
+    memory_gb: 64
+    cluster: 'simcloud-mr2.apple.com'
+    # Docker best practices use sha: https://bolt.apple.com/docs/applications.html?highlight=docker#using-docker
+    docker_image: docker.apple.com/mdewitt/torch_jupyter_py3@sha256:abba8505ec0645a1d41ba64725fb98fbb4054d428d7a16a3755f837add0e5b31
+environment_variables:
+    LD_LIBRARY_PATH: "$LD_LIBRARY_PATH:/usr/local/cuda/lib64/"
+    # _USER VARIABLES_
+    # Blobby `BUCKET_PATH` to copy files into the job from Blobby. See Readme.md for more info.
+    BUCKET_PATH: "" # e.g "<USERNAME>/notebooks"
+    # The interval (in seconds) with which to sync contents to Blobby.
+    BACKUP_INTERVAL_SEC: "600"
+    PREFER_LAB: "ON"  # Preference for Jupyter Lab or Notebook -- careful, yml changes ON to True, and bolt barfs on booleans. use "" and "ON"

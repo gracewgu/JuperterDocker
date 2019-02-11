@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+# A light wrapper around internal AWS (Blobby) syncing. 
+# You may pass any s3 compatible command line arguments:
+# e.g. `blobby_sync --delete --dryrun`
+# https://docs.aws.amazon.com/cli/latest/reference/s3/sync.html
+
+import os
+import sys
+import time
+import argparse
+from datetime import datetime
+from subprocess import Popen, PIPE
+from pathlib import Path
+from functools import partial
+
+blobby_alias = 'aws --endpoint-url https://blob.mr3.simcloud.apple.com --cli-read-timeout 300 s3 sync'
+log_file = Path(os.environ.get('BOLT_LOG_DIR', '')) / 'sync_history.log'
+
+bucket_path = os.environ.get('BUCKET_PATH', '')
+relative_bucket = Path(bucket_path.lstrip('s3:').lstrip('/'))
+local_path = f'/{relative_bucket}'
+remote_path = f's3://{relative_bucket}'
+
+def sync(args, verbose):
+    cmd = blobby_alias.split() + [local_path, remote_path] + args
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+
+    with log_file.open('a') as f:
+        handles = [f] + ([sys.stdout] if verbose else [])
+        def write(output): 
+            for h in handles: h.write(output)
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        write(f'[{timestamp}] Syncing with args {args}...\n')
+
+        outs, errors = proc.communicate()
+        for o in outs: write(o)
+        for err in errors: write('\033[91m'+err+'\033[0m') # Color output red.
+
+
+def input_parser():
+    parser = argparse.ArgumentParser(description=f'Syncs {local_path} to {remote_path}.')
+    parser.add_argument('--verbose', help="Display stdout", action="store_true")
+    parser.add_argument('--interval', help="The interval (in seconds) to continuously sync blobby contents", type=int, default=0)
+    # WARNING: Do not add arguments that conflict with aws. This is meant to be a light wrapper for continuous sync.
+    parser.add_argument('aws_cli', nargs='*', help="Arguments to the aws cli (e.g. --delete, --dryrun, etc.)")
+    return parser
+
+
+def main():
+    if not bucket_path:
+        print("No $BUCKET_PATH found....")
+        sys.exit()
+
+    args, unknown_args = input_parser().parse_known_args()
+    all_cli_args = args.aws_cli + unknown_args # Allow for fully qualified args like --dryrun.
+    sync_cmd = partial(sync, args=all_cli_args, verbose=args.verbose)
+
+    if args.interval > 0:
+        print(f"Running sync every {args.interval} seconds...")
+        while True:
+            time.sleep(args.interval)
+            sync_cmd()
+    else:
+        sync_cmd()
+
+
+if __name__ == '__main__':
+    main()

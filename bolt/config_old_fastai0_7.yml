@@ -1,0 +1,24 @@
+# Additional configuration options can be found here: https://bolt.apple.com/docs/tasks.html#configuring-a-task
+name: PyTorch + Jupyter Notebook via Docker for use with FastAI pt 2 2018 (FastAI0.7)
+description: Python 3.6, conda, CUDA, PyTorch (GPU), and Jupyter Notebook.
+tags: ["Jupyter", "PyTorch", "Python3.6", "CUDA90"]
+setup_command: "bash $TASK_RUNTIME_DIR/util/configure_blobby_bucket.sh" # Included as part of the docker_image.
+command: "bash command.sh"
+resources:
+    ports: ["NOTEBOOK_PORT", "NOTEBOOK_PORT2", "TENSORBOARD_PORT", "ANOTHER_PORT", "ANOTHER_PORT2"]
+    num_cpus: 4
+    num_gpus: 1
+    timeout: 14d
+    memory_gb: 64
+    cluster: 'simcloud-mr2.apple.com'
+    # Docker best practices use sha: https://bolt.apple.com/docs/applications.html?highlight=docker#using-docker
+    # `docker images --digests` to get sha from docker.apple.com
+    docker_image: docker.apple.com/mmcki/torch_jupyter_py3_fastai0_7@sha256:598074e68541a5f333a7fff96c2353baf38bf59b83331733264bc32070ba214d
+environment_variables:
+    LD_LIBRARY_PATH: "$LD_LIBRARY_PATH:/usr/local/cuda/lib64/"
+    # _USER VARIABLES_
+    # Blobby `BUCKET_PATH` to copy files into the job from Blobby. See Readme.md for more info.
+    BUCKET_PATH: "maxwellmckinnon/FastAInotebooks" # e.g "<USERNAME>/notebooks"
+    # The interval with which to sync contents to Blobby. (Default 1 hour)
+    BACKUP_INTERVAL_SEC: "60"
+    PREFER_LAB: ""  # Preference for Jupyter Lab or Notebook -- careful, yml changes ON to True, and bolt barfs on booleans. use "" and "ON"

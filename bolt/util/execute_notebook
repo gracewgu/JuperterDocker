@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+from pathlib import Path
+
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
+from nbconvert.preprocessors import CellExecutionError
+# https://nbconvert.readthedocs.io/en/latest/execute_api.html
+
+def input_parser():
+    parser = argparse.ArgumentParser(description='Execute a jupyter notebook and save the output.')
+    parser.add_argument('notebook_path', help='The path to the notebook.')
+    parser.add_argument('-o', '--output', help='Optional name for the output.')
+    parser.add_argument('--to', help='Converts the notebook to the specified format {html, pdf, html_toc, etc.} after execution.')
+    return parser
+
+def main():
+    args = input_parser().parse_args()
+    notebook = Path(args.notebook_path)
+    
+    with notebook.open() as f:
+        nb = nbformat.read(f, as_version=4)
+        
+    output = args.output if args.output else \
+             notebook.parent / ("execute_" + notebook.name)
+    output = Path(output).with_suffix('.ipynb')
+
+    ep = ExecutePreprocessor(timeout=None, kernel_name='python3')
+    try:
+        print(f"Executing {notebook}...")
+        ep.preprocess(nb, {'metadata': {'path': notebook.parent}})
+    except CellExecutionError:
+        msg = f'Error executing the notebook "{notebook}".\n\n'
+        msg += f'See notebook "{output}" for the traceback.'
+        print(msg)
+        raise
+    except KeyboardInterrupt:
+        pass
+    finally:
+        print("Saving", output)
+        with open(output, mode='wt') as f:
+            nbformat.write(nb, f)
+                
+        if args.to:
+            subprocess.check_call(f"jupyter nbconvert {output} --to {args.to}".split())
+            output.unlink() # Cleanup executed notebook.
+
+
+if __name__ == '__main__':
+    main()

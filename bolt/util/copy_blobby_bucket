@@ -1,0 +1,27 @@
+#!/bin/bash -e
+# See best practices: https://bolt.apple.com/docs/cluster-config.html?highlight=best%20practices#setup-script
+
+. /opt/conda/etc/profile.d/conda.sh
+conda activate
+
+# Step 1: Configure Blobby (aws).
+blobby='aws --endpoint-url https://blob.mr3.simcloud.apple.com --cli-read-timeout 300'
+
+export AWS_ACCESS_KEY_ID=$SC_TOKEN
+export AWS_SECRET_ACCESS_KEY=$(echo $SC_USERNAME | awk -F: '{print $NF}')
+aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+aws configure set default.s3.multipart_chunksize 64MB
+aws configure set default.s3.signature_version s3
+aws configure set default.s3.addressing_style path
+aws configure set default.region blobby
+
+# Step 2: Copy the requested $BUCKET_PATH.
+if [ $BUCKET_PATH ]; then
+    set -x # Print command traces to view Blobby activity.
+
+    # Start the notebook server from the requested bucket.
+    mkdir -p /$BUCKET_PATH
+    $blobby s3 cp s3://$BUCKET_PATH /$BUCKET_PATH --recursive --only-show-errors
+    set +x
+fi
