@@ -1,0 +1,14 @@
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.7.2
+  - numpy
+  - pandas
+  - jupyterlab
+  # - nodejs # @jupyterlab/toc support
+  - matplotlib
+  - awscli # Blobby sync support
+  - nose
+  - pytorch
+  - torchvision
